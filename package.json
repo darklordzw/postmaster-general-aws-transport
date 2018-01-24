@@ -1,0 +1,78 @@
+{
+  "name": "postmaster-general-aws-transport",
+  "version": "0.0.1",
+  "description": "A transport module for the postmaster-general microservice library using AWS SNS and SQS for message delivery.",
+  "author": "Ben Whatley",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darklordzw/postmaster-general-aws-transport.git"
+  },
+  "keywords": [
+    "microservices",
+    "message bus",
+    "postmaster-general"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/darklordzw/postmaster-general-aws-transport/issues"
+  },
+  "homepage": "https://github.com/darklordzw/postmaster-general-aws-transport#readme",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "defaults.json"
+  ],
+  "scripts": {
+    "test": "nyc --reporter=html --reporter=text mocha --exit",
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "doc": "./node_modules/.bin/jsdoc -c ./jsdoc-conf.json -t ./node_modules/ink-docstrap/template -R README.md -d ./docs -r ."
+  },
+  "dependencies": {
+    "aws-sdk": "^2.186.0",
+    "lodash": "^4.17.4",
+    "postmaster-general-core": "^0.0.7",
+    "sqs-consumer": "^3.8.0"
+  },
+  "peerDependencies": {
+    "postmaster-general": "5.x"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.0",
+    "dirty-chai": "^2.0.1",
+    "ink-docstrap": "^1.3.2",
+    "jsdoc": "^3.5.5",
+    "mocha": "^4.1.0",
+    "nyc": "^11.4.1",
+    "sinon": "^4.1.6",
+    "supertest": "^3.0.0",
+    "xo": "^0.18.2"
+  },
+  "xo": {
+    "envs": [
+      "node",
+      "mocha"
+    ],
+    "ignores": [
+      ".nyc_output/**",
+      "coverage/**",
+      "docs/**",
+      "test-results/**"
+    ],
+    "rules": {
+      "linebreak-style": "off",
+      "unicode-bom": "off",
+      "arrow-parens": [
+        "error",
+        "always"
+      ],
+      "import/no-unresolved": "off",
+      "object-curly-spacing": [
+        "error",
+        "always"
+      ],
+      "no-use-extend-native/no-use-extend-native": "off",
+      "unicorn/no-process-exit": "off"
+    }
+  }
+}

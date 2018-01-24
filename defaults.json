@@ -1,0 +1,6 @@
+{
+	"region": "us-east-1",
+	"batchSize": 1,
+	"visibilityTimeout": 30,
+	"maxReceiveCount": 5
+}
