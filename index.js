@@ -5,11 +5,11 @@
  * @module index
  */
 
+const _ = require('lodash');
 const AWS = require('aws-sdk');
 const Consumer = require('sqs-consumer');
-const _ = require('lodash');
-const Transport = require('postmaster-general-core').Transport;
 const errors = require('postmaster-general-core').errors;
+const Transport = require('postmaster-general-core').Transport;
 const defaults = require('./defaults');
 
 /**
@@ -29,6 +29,7 @@ class AWSTransport extends Transport {
 	 * @param {number} [options.visibilityTimeout] - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved.
 	 * @param {number} [options.maxReceiveCount] - The maximum number of times to requeue a message before it's sent to the dead letter queue.
 	 * @param {string} [options.deadLetterQueueArn] - The Arn of the dead letter queue to send dead messages to.
+	 * @param {object} [options.AWS] - The AWS SDK instance to use. Useful for unit testing with mocks.
 	 */
 	constructor(options) {
 		super(options);
@@ -60,6 +61,8 @@ class AWSTransport extends Transport {
 		}
 
 		this.queue = options.queue;
+		this.queueUrl = null;
+		this.queueArn = null;
 		this.accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
 		this.secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
 		this.region = options.region || defaults.region;
@@ -67,30 +70,37 @@ class AWSTransport extends Transport {
 		this.visibilityTimeout = options.visibilityTimeout || defaults.visibilityTimeout;
 		this.maxReceiveCount = options.maxReceiveCount || defaults.maxReceiveCount;
 		this.deadLetterQueueArn = options.deadLetterQueueArn;
+		this.handlers = {};
+		this.registeredTopics = {
+			publish: new Set(),
+			subscribe: new Set()
+		};
 		this.consumer = null;
-		this.queueUrl = null;
-		this.queueArn = null;
 
-		AWS.config.update({
+		// Go ahead and initialize AWS here so it's available wherever we need it.
+		this.AWS = options.AWS || AWS;
+		this.AWS.config.update({
 			region: this.region,
 			accessKeyId: this.accessKeyId,
 			secretAccessKey: this.secretAccessKey
 		});
 
-		this.sqs = new AWS.SQS();
-		this.sns = new AWS.SNS();
+		this.sqs = new this.AWS.SQS();
+		this.sns = new this.AWS.SNS();
 	}
 
 	/**
 	 * Connects the transport from to any services it needs to function.
 	 * In this case, it creates the SQS queue to consume from, if a queue name was specified
-	 * in the constructor.
+	 * in the constructor. The creation call is only made once during the lifetime of the transport
+	 * to save on AWS calls.
 	 * @returns {Promise}
 	 */
 	connect() {
 		return super.connect()
 			.then(() => {
-				if (this.queue) {
+				// Only try creation if we have a queue to create and we haven't already created it.
+				if (this.queue && (!this.queueUrl || !this.queueArn)) {
 					const queueOptions = {
 						QueueName: this.queue,
 						Attributes: {
@@ -105,21 +115,21 @@ class AWSTransport extends Transport {
 						});
 					}
 
-					return this.sqs.createQueue(queueOptions).promise();
+					return this.sqs.createQueue(queueOptions).promise()
+						.then((data) => {
+							this.queueUrl = data.QueueUrl;
+							return this.sqs.getQueueAttributes({ QueueUrl: data.QueueUrl, AttributeNames: ['QueueArn'] }).promise();
+						})
+						.then((data) => {
+							this.queueArn = data.QueueArn;
+						});
 				}
-			})
-			.then((data) => {
-				this.queueUrl = data.QueueUrl;
-				return this.sqs.getQueueAttributes({ QueueUrl: data.QueueUrl, AttributeNames: ['QueueArn'] }).promise();
-			})
-			.then((data) => {
-				this.queueArn = data.QueueArn;
 			});
 	}
 
 	/**
 	 * Disconnects the transport from any services it references.
-	 * In this case, it cleans up the SQS consumer.
+	 * In this case, it simply stops the SQS consumer.
 	 * @returns {Promise}
 	 */
 	disconnect() {
@@ -127,9 +137,6 @@ class AWSTransport extends Transport {
 			.then(() => {
 				if (this.consumer) {
 					this.consumer.stop();
-					this.consumer.removeAllListeners();
-					this.consumer = null;
-					this.queueUrl = null;
 				}
 			});
 	}
@@ -144,32 +151,42 @@ class AWSTransport extends Transport {
 	}
 
 	/**
-	 * Adds a new message handler.
+	 * Adds a new message handler. This is done by creating an SNS topic and subscribing the
+	 * queue to the topic. Asserting the topic and the subscription is only done once
+	 * during the lifetime of the transport to save on AWS calls.
 	 * @param {string} routingKey - The routing key of the message to handle.
 	 * @param {function} callback - The function to call when a new message is received.
 	 * @param {object} [options] - Optional params for configuring the handler.
-	 * @param {number} [options.httpMethod] - The HTTP method to listen for. Defaults to "GET".
 	 * @returns {Promise}
 	 */
 	addListener(routingKey, callback, options) {
-		let topic;
 		return super.addListener(routingKey, callback, options)
 			.then((callbackWrapper) => {
-				topic = this.resolveTopic(routingKey);
-				this.handlers[topic] = callbackWrapper();
-			})
-			.then(() => this.sns.createTopic({ Name: topic }).promise())
-			.then((data) => this.sns.subscribe({ Protocol: 'sqs', TopicArn: data.TopicArn, Endpoint: this.queueArn }).promise())
-			.then((data) => {
-				if (!data.SubscriptionArn) {
-					throw new Error(`Unable to create a subscription from topic ${topic} to SQS queue ${this.queueUrl}`);
+				if (!this.queueUrl || !this.queueArn) {
+					throw new Error('Unable to add listener, "connect()" should be called first.');
 				}
+
+				const topic = this.resolveTopic(routingKey);
+				this.handlers[topic] = callbackWrapper();
+
+				if (!this.registeredTopics.subscribe.has(topic)) {
+					return this.sns.createTopic({ Name: topic }).promise()
+						.then((data) => this.sns.subscribe({ Protocol: 'sqs', TopicArn: data.TopicArn, Endpoint: this.queueArn }).promise())
+						.then((data) => {
+							if (!data.SubscriptionArn) {
+								throw new Error(`Unable to create a subscription from topic ${topic} to SQS queue ${this.queueUrl}`);
+							}
+							return this.handlers[topic];
+						});
+				}
+
 				return this.handlers[topic];
 			});
 	}
 
 	/**
-	 * Deletes a message handler.
+	 * Deletes a message handler. Note that this does not cleanup any SQS queues or topics
+	 * associated with this transport, as they may be shared among multiple services.
 	 * @param {string} routingKey - The routing key of the handler to remove.
 	 * @returns {Promise}
 	 */
@@ -188,41 +205,45 @@ class AWSTransport extends Transport {
 	listen() {
 		return super.listen()
 			.then(() => {
-				if (!this.queueUrl) {
+				if (!this.queueUrl || !this.queueArn) {
 					throw new Error('Unable to start listening, "connect()" should be called first.');
 				}
 
-				this.consumer = Consumer.create({
-					queueUrl: this.queueUrl,
-					handleMessage: (message, done) => {
-						const body = JSON.parse(message.body || '{}');
-						const correlationId = message.MessageAttributes.correlationId.StringValue;
-						const initiator = message.MessageAttributes.initiator.StringValue || undefined;
-						const topic = message.MessageAttributes.topic.StringValue;
+				if (!this.consumer) {
+					this.consumer = Consumer.create({
+						queueUrl: this.queueUrl,
+						handleMessage: (message, done) => {
+							const body = JSON.parse(message.body || '{}');
+							const correlationId = message.MessageAttributes.correlationId.StringValue;
+							const initiator = message.MessageAttributes.initiator.StringValue || undefined;
+							const topic = message.MessageAttributes.topic.StringValue;
 
-						if (this.handlers[topic]) {
-							this.handlers[topic](body, correlationId, initiator)
-								.then(() => {
-									done();
-								})
-								.catch((err) => {
-									done(err);
-								});
-						} else {
-							done(new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`));
-						}
-					},
-					sqs: this.sqs,
-					messageAttributeNames: ['correlationId', 'initiator']
-				});
+							if (this.handlers[topic]) {
+								this.handlers[topic](body, correlationId, initiator)
+									.then(() => {
+										done();
+									})
+									.catch((err) => {
+										done(err);
+									});
+							} else {
+								done(new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`));
+							}
+						},
+						sqs: this.sqs,
+						messageAttributeNames: ['correlationId', 'initiator']
+					});
 
-				this.consumer.on('error', (err) => {
-					this.emit('error', err);
-				});
+					this.consumer.on('error', (err) => {
+						this.emit('error', err);
+					});
 
-				this.consumer.on('processing_error', (err) => {
-					this.emit('error', err);
-				});
+					this.consumer.on('processing_error', (err) => {
+						this.emit('error', err);
+					});
+				}
+
+				this.consumer.start();
 			});
 	}
 
@@ -238,11 +259,12 @@ class AWSTransport extends Transport {
 	publish(routingKey, message, options) {
 		let correlationId;
 		let topic;
+
 		return super.publish(routingKey, message, options)
 			.then((cId) => {
 				correlationId = cId;
 				topic = this.resolveTopic(routingKey);
-				return this.sns.createTopic({ name: topic }).promise();
+				return this.sns.createTopic({ Name: topic }).promise();
 			})
 			.then((data) => this.sns.publish({
 				Message: message,
