@@ -43,6 +43,9 @@ describe('aws-transport:', () => {
 		AWS.mock('SNS', 'createTopic', (params, callback) => {
 			callback(null, { TopicArn: `${params.Name}-topic-arn` });
 		});
+		AWS.mock('SNS', 'publish', (params, callback) => {
+			callback(null, { MessageId: 1 });
+		});
 		AWS.mock('SNS', 'subscribe', (params, callback) => {
 			callback(null, { SubscriptionArn: `${params.TopicArn}-subscription-arn` });
 		});
@@ -170,97 +173,104 @@ describe('aws-transport:', () => {
 		});
 	});
 
-	// describe('addListener:', () => {
-	// 	let transport;
+	describe('addListener:', () => {
+		let transport;
 
-	// 	beforeEach(() => {
-	// 		transport = new AWSTransport({ queue: 'bob' });
-	// 	});
+		beforeEach(() => {
+			transport = new AWSTransport({ queue: 'bob' });
+		});
 
-	// 	afterEach(() => {
-	// 		if (transport && transport.listening) {
-	// 			return transport.disconnect();
-	// 		}
-	// 	});
+		afterEach(() => {
+			if (transport && transport.listening) {
+				return transport.disconnect();
+			}
+		});
 
-	// 	it('should return a promise that resolves', () => {
-	// 		return transport.addListener('bobMessage', (msg, correlationId, initiator) => {
-	// 			return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
-	// 		});
-	// 	});
-	// 	it('should catch invalid routingKey params', () => {
-	// 		return transport.addListener(44444, (msg, correlationId, initiator) => {
-	// 			return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
-	// 		})
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should catch invalid callback params', () => {
-	// 		return transport.addListener('bob')
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should register a working get callback', () => {
-	// 		return transport.addListener('bob', (msg, correlationId, initiator) => {
-	// 			return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
-	// 		})
-	// 			.then((handler) => {
-	// 				expect(handler).to.exist();
-	// 			})
-	// 			.then(() => transport.listen())
-	// 			.then(() => supertest(transport.app)
-	// 				.get('/bob?testParam=5')
-	// 				.set('X-PMG-CorrelationId', 'testCorrelationId')
-	// 				.set('X-PMG-Initiator', 'testInitiator')
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(200)
-	// 				.then((response) => { // eslint-disable-line max-nested-callbacks
-	// 					response.body.result.should.equal('Received {"testParam":"5"}, testCorrelationId, testInitiator');
-	// 				}));
-	// 	});
-	// 	it('should register a working post callback', () => {
-	// 		return transport.addListener('bob', (msg, correlationId, initiator) => {
-	// 			return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
-	// 		}, { httpMethod: 'POST' })
-	// 			.then((handler) => {
-	// 				expect(handler).to.exist();
-	// 			})
-	// 			.then(() => transport.listen())
-	// 			.then(() => supertest(transport.app)
-	// 				.post('/bob')
-	// 				.set('X-PMG-CorrelationId', 'testCorrelationId')
-	// 				.set('X-PMG-Initiator', 'testInitiator')
-	// 				.send({ postParam1: 'test value' })
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(200)
-	// 				.then((response) => { // eslint-disable-line max-nested-callbacks
-	// 					response.body.result.should.equal('Received {"postParam1":"test value"}, testCorrelationId, testInitiator');
-	// 				}));
-	// 	});
-	// 	it('should handle unregistered routes appropriately', () => {
-	// 		return transport.listen()
-	// 			.then(() => supertest(transport.app)
-	// 				.post('/bob')
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(404)
-	// 				.then((response) => { // eslint-disable-line max-nested-callbacks
-	// 					expect(response.body).to.exist();
-	// 					response.body.message.should.equal('Not Found');
-	// 				}));
-	// 	});
-	// });
+		it('should return a promise that resolves', () => {
+			return transport.connect()
+				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => {
+					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
+				}));
+		});
+		it('should catch invalid routingKey params', () => {
+			return transport.connect()
+				.then(() => transport.addListener(44444, (msg, correlationId, initiator) => {
+					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
+				}))
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+		it('should catch invalid callback params', () => {
+			return transport.connect()
+				.then(() => transport.addListener('bobMessage'))
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+		it('should register a working get callback', (done) => {
+			AWS.restore('SQS', 'receiveMessage');
+			AWS.mock('SQS', 'receiveMessage', (params, callback) => {
+				setTimeout(() => {
+					callback(null, {
+						Messages: [
+							{
+								ReceiptHandle: 'test',
+								MessageId: 1,
+								Body: JSON.stringify({ testMessage: 'test value' }),
+								MessageAttributes: {
+									correlationId: { StringValue: 'test' },
+									initiator: { StringValue: 'test' },
+									topic: { StringValue: 'bobMessage' }
+								}
+							}
+						]
+					});
+				}, 1000);
+			});
+
+			transport.connect()
+				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => {
+					try {
+						msg.testMessage.should.equal('test value');
+						correlationId.should.equal('test');
+						initiator.should.equal('test');
+						done();
+					} catch (err) {
+						done(err);
+					}
+					return Promise.resolve(this);
+				}))
+				.then((handler) => {
+					expect(handler).to.exist();
+				})
+				.then(() => transport.listen())
+				.catch((err) => {
+					done(err);
+				});
+		});
+		// it('should handle unregistered routes appropriately', () => {
+		// 	return transport.listen()
+		// 		.then(() => supertest(transport.app)
+		// 			.post('/bob')
+		// 			.expect('Content-Type', /json/)
+		// 			.expect(404)
+		// 			.then((response) => { // eslint-disable-line max-nested-callbacks
+		// 				expect(response.body).to.exist();
+		// 				response.body.message.should.equal('Not Found');
+		// 			}));
+		// });
+	});
 
 	// describe('removeListener:', () => {
 	// 	let transport;

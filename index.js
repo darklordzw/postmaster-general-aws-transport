@@ -165,7 +165,7 @@ class AWSTransport extends Transport {
 				}
 
 				const topic = this.resolveTopic(routingKey);
-				this.handlers[topic] = callbackWrapper();
+				this.handlers[topic] = callbackWrapper;
 
 				if (!this.registeredTopics.subscribe.has(topic)) {
 					return this.sns.createTopic({ Name: topic }).promise()
@@ -210,8 +210,8 @@ class AWSTransport extends Transport {
 				if (!this.consumer) {
 					this.consumer = Consumer.create({
 						queueUrl: this.queueUrl,
-						handleMessage: (message, done) => {
-							const body = JSON.parse(message.body || '{}');
+						handleMessage: ((message, done) => {
+							const body = JSON.parse(message.Body || '{}');
 							const correlationId = message.MessageAttributes.correlationId.StringValue;
 							const initiator = message.MessageAttributes.initiator.StringValue || undefined;
 							const topic = message.MessageAttributes.topic.StringValue;
@@ -223,11 +223,12 @@ class AWSTransport extends Transport {
 									})
 									.catch((err) => {
 										done(err);
-									});
+									})
+									.catch(() => {});
 							} else {
 								done(new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`));
 							}
-						},
+						}),
 						sqs: this.sqs,
 						messageAttributeNames: ['correlationId', 'initiator']
 					});
@@ -257,6 +258,7 @@ class AWSTransport extends Transport {
 	publish(routingKey, message, options) {
 		let correlationId;
 		let topic;
+		options = options || {};
 
 		return super.publish(routingKey, message, options)
 			.then((cId) => {
@@ -265,7 +267,7 @@ class AWSTransport extends Transport {
 				return this.sns.createTopic({ Name: topic }).promise();
 			})
 			.then((data) => this.sns.publish({
-				Message: message,
+				Message: JSON.stringify(message),
 				MessageAttributes: {
 					correlationId: {
 						DataType: 'String',
@@ -280,7 +282,6 @@ class AWSTransport extends Transport {
 						StringValue: topic
 					}
 				},
-				MessageStructure: 'json',
 				TopicArn: data.TopicArn
 			}).promise());
 	}
