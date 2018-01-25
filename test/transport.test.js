@@ -27,10 +27,10 @@ describe('aws-transport:', () => {
 
 	beforeEach(() => {
 		AWS.mock('SQS', 'createQueue', (params, callback) => {
-			callback(null, { QueueUrl: 'test-queue-url' });
+			callback(null, { QueueUrl: `${params.QueueName}-queue-url` });
 		});
 		AWS.mock('SQS', 'getQueueAttributes', (params, callback) => {
-			callback(null, { QueueArn: 'test-queue-arn' });
+			callback(null, { QueueArn: `${params.QueueUrl}-queue-arn` });
 		});
 		AWS.mock('SQS', 'receiveMessage', (params, callback) => {
 			setTimeout(() => {
@@ -39,6 +39,12 @@ describe('aws-transport:', () => {
 		});
 		AWS.mock('SQS', 'deleteMessage', (params, callback) => {
 			callback();
+		});
+		AWS.mock('SNS', 'createTopic', (params, callback) => {
+			callback(null, { TopicArn: `${params.Name}-topic-arn` });
+		});
+		AWS.mock('SNS', 'subscribe', (params, callback) => {
+			callback(null, { SubscriptionArn: `${params.TopicArn}-subscription-arn` });
 		});
 	});
 
@@ -102,8 +108,8 @@ describe('aws-transport:', () => {
 			const transport = new AWSTransport({ queue: 'bob' });
 			return transport.connect()
 				.then(() => {
-					transport.queueArn.should.equal('test-queue-arn');
-					transport.queueUrl.should.equal('test-queue-url');
+					transport.queueArn.should.equal('bob-queue-url-queue-arn');
+					transport.queueUrl.should.equal('bob-queue-url');
 				});
 		});
 		it('should create an SQS queue with the correct parameters', () => {
@@ -121,7 +127,7 @@ describe('aws-transport:', () => {
 			const transport = new AWSTransport({ queue: 'bob', deadLetterQueueArn: 'bobdlq' });
 			return transport.connect()
 				.then(() => {
-					transport.queueArn.should.equal('test-queue-arn');
+					transport.queueArn.should.equal('true-queue-arn');
 					transport.queueUrl.should.equal('true');
 				});
 		});
@@ -168,7 +174,7 @@ describe('aws-transport:', () => {
 	// 	let transport;
 
 	// 	beforeEach(() => {
-	// 		transport = new AWSTransport();
+	// 		transport = new AWSTransport({ queue: 'bob' });
 	// 	});
 
 	// 	afterEach(() => {
@@ -178,7 +184,7 @@ describe('aws-transport:', () => {
 	// 	});
 
 	// 	it('should return a promise that resolves', () => {
-	// 		return transport.addListener('bob', (msg, correlationId, initiator) => {
+	// 		return transport.addListener('bobMessage', (msg, correlationId, initiator) => {
 	// 			return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
 	// 		});
 	// 	});
