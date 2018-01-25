@@ -37,6 +37,7 @@
     "postmaster-general": "5.x"
   },
   "devDependencies": {
+    "aws-sdk-mock": "^1.7.0",
     "chai": "^4.1.2",
     "coveralls": "^3.0.0",
     "dirty-chai": "^2.0.1",
@@ -44,8 +45,7 @@
     "jsdoc": "^3.5.5",
     "mocha": "^4.1.0",
     "nyc": "^11.4.1",
-    "sinon": "^4.1.6",
-    "supertest": "^3.0.0",
+    "sinon": "^4.2.1",
     "xo": "^0.18.2"
   },
   "xo": {

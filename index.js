@@ -29,7 +29,6 @@ class AWSTransport extends Transport {
 	 * @param {number} [options.visibilityTimeout] - The duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved.
 	 * @param {number} [options.maxReceiveCount] - The maximum number of times to requeue a message before it's sent to the dead letter queue.
 	 * @param {string} [options.deadLetterQueueArn] - The Arn of the dead letter queue to send dead messages to.
-	 * @param {object} [options.AWS] - The AWS SDK instance to use. Useful for unit testing with mocks.
 	 */
 	constructor(options) {
 		super(options);
@@ -67,7 +66,7 @@ class AWSTransport extends Transport {
 		this.secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
 		this.region = options.region || defaults.region;
 		this.batchSize = options.batchSize || defaults.batchSize;
-		this.visibilityTimeout = options.visibilityTimeout || defaults.visibilityTimeout;
+		this.visibilityTimeout = (options.visibilityTimeout || defaults.visibilityTimeout).toString();
 		this.maxReceiveCount = options.maxReceiveCount || defaults.maxReceiveCount;
 		this.deadLetterQueueArn = options.deadLetterQueueArn;
 		this.handlers = {};
@@ -78,15 +77,14 @@ class AWSTransport extends Transport {
 		this.consumer = null;
 
 		// Go ahead and initialize AWS here so it's available wherever we need it.
-		this.AWS = options.AWS || AWS;
-		this.AWS.config.update({
+		AWS.config.update({
 			region: this.region,
 			accessKeyId: this.accessKeyId,
 			secretAccessKey: this.secretAccessKey
 		});
 
-		this.sqs = new this.AWS.SQS();
-		this.sns = new this.AWS.SNS();
+		this.sqs = new AWS.SQS();
+		this.sns = new AWS.SNS();
 	}
 
 	/**
