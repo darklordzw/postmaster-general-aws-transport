@@ -174,7 +174,7 @@ describe('aws-transport:', () => {
 		});
 	});
 
-	describe('addListener:', () => {
+	describe('addMessageListener:', () => {
 		let transport;
 
 		beforeEach(() => {
@@ -189,13 +189,13 @@ describe('aws-transport:', () => {
 
 		it('should return a promise that resolves', () => {
 			return transport.connect()
-				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
+				.then(() => transport.addMessageListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
 				}));
 		});
 		it('should catch invalid routingKey params', () => {
 			return transport.connect()
-				.then(() => transport.addListener(44444, (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
+				.then(() => transport.addMessageListener(44444, (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
 				}))
 				.then(() => {
@@ -209,7 +209,7 @@ describe('aws-transport:', () => {
 		});
 		it('should catch invalid callback params', () => {
 			return transport.connect()
-				.then(() => transport.addListener('bobMessage'))
+				.then(() => transport.addMessageListener('bobMessage'))
 				.then(() => {
 					throw new Error('Failed to catch invalid input.');
 				})
@@ -241,7 +241,7 @@ describe('aws-transport:', () => {
 			});
 
 			transport.connect()
-				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
+				.then(() => transport.addMessageListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					try {
 						msg.testMessage.should.equal('test value');
 						correlationId.should.equal('test');
@@ -262,7 +262,7 @@ describe('aws-transport:', () => {
 		});
 	});
 
-	describe('removeListener:', () => {
+	describe('removeMessageListener:', () => {
 		let transport;
 
 		beforeEach(() => {
@@ -276,10 +276,10 @@ describe('aws-transport:', () => {
 		});
 
 		it('should return a promise that resolves', () => {
-			return transport.removeListener('bobMessage');
+			return transport.removeMessageListener('bobMessage');
 		});
 		it('should catch invalid routingKey params', () => {
-			return transport.removeListener(35353535)
+			return transport.removeMessageListener(35353535)
 				.then(() => {
 					throw new Error('Failed to catch invalid input.');
 				})
@@ -291,14 +291,14 @@ describe('aws-transport:', () => {
 		});
 		it('should remove the listener', () => {
 			return transport.connect()
-				.then(() => transport.addListener('bobMessage', () => { // eslint-disable-line max-nested-callbacks
+				.then(() => transport.addMessageListener('bobMessage', () => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve();
 				}))
 				.then(() => transport.listen())
 				.then(() => {
 					expect(transport.handlers.bobMessage).to.exist();
 				})
-				.then(() => transport.removeListener('bobMessage'))
+				.then(() => transport.removeMessageListener('bobMessage'))
 				.then(() => {
 					expect(transport.handlers.bobMessage).to.not.exist();
 				});

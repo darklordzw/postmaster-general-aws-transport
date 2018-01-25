@@ -157,8 +157,8 @@ class AWSTransport extends Transport {
 	 * @param {object} [options] - Optional params for configuring the handler.
 	 * @returns {Promise}
 	 */
-	addListener(routingKey, callback, options) {
-		return super.addListener(routingKey, callback, options)
+	addMessageListener(routingKey, callback, options) {
+		return super.addMessageListener(routingKey, callback, options)
 			.then((callbackWrapper) => {
 				if (!this.queueUrl || !this.queueArn) {
 					throw new Error('Unable to add listener, "connect()" should be called first.');
@@ -188,8 +188,8 @@ class AWSTransport extends Transport {
 	 * @param {string} routingKey - The routing key of the handler to remove.
 	 * @returns {Promise}
 	 */
-	removeListener(routingKey) {
-		return super.removeListener(routingKey)
+	removeMessageListener(routingKey) {
+		return super.removeMessageListener(routingKey)
 			.then(() => {
 				const topic = this.resolveTopic(routingKey);
 				delete this.handlers[topic];
