@@ -32,6 +32,14 @@ describe('aws-transport:', () => {
 		AWS.mock('SQS', 'getQueueAttributes', (params, callback) => {
 			callback(null, { QueueArn: 'test-queue-arn' });
 		});
+		AWS.mock('SQS', 'receiveMessage', (params, callback) => {
+			setTimeout(() => {
+				callback(null, { Messages: [] });
+			}, params.WaitTimeSeconds);
+		});
+		AWS.mock('SQS', 'deleteMessage', (params, callback) => {
+			callback();
+		});
 	});
 
 	afterEach(() => {
@@ -98,40 +106,63 @@ describe('aws-transport:', () => {
 					transport.queueUrl.should.equal('test-queue-url');
 				});
 		});
+		it('should create an SQS queue with the correct parameters', () => {
+			AWS.restore('SQS', 'createQueue');
+			AWS.mock('SQS', 'createQueue', (params, callback) => {
+				if (params.QueueName === 'bob' &&
+					params.Attributes.VisibilityTimeout === '30' &&
+					params.Attributes.RedrivePolicy === '{"deadLetterTargetArn":"bobdlq","maxReceiveCount":5}') {
+					callback(null, { QueueUrl: 'true' });
+				} else {
+					callback(null, { QueueUrl: 'false' });
+				}
+			});
+
+			const transport = new AWSTransport({ queue: 'bob', deadLetterQueueArn: 'bobdlq' });
+			return transport.connect()
+				.then(() => {
+					transport.queueArn.should.equal('test-queue-arn');
+					transport.queueUrl.should.equal('true');
+				});
+		});
 	});
 
-	// describe('disconnect:', () => {
-	// 	it('should return a promise that resolves', () => {
-	// 		const transport = new AWSTransport();
-	// 		return transport.disconnect();
-	// 	});
-	// 	it('should cleanup resources', () => {
-	// 		const transport = new AWSTransport();
-	// 		return transport.listen()
-	// 			.then(() => transport.disconnect())
-	// 			.then(() => {
-	// 				transport.listening.should.be.false();
-	// 				expect(transport.server).to.not.exist();
-	// 			});
-	// 	});
-	// });
+	describe('disconnect:', () => {
+		it('should return a promise that resolves', () => {
+			const transport = new AWSTransport();
+			return transport.disconnect();
+		});
+		it('should cleanup resources', () => {
+			const transport = new AWSTransport({ queue: 'bob' });
+			return transport.connect()
+				.then(() => transport.listen())
+				.then(() => {
+					return transport.disconnect();
+				})
+				.then(() => {
+					transport.listening.should.be.false();
+					expect(transport.consumer).to.exist();
+					transport.consumer.stopped.should.be.true();
+				});
+		});
+	});
 
-	// describe('resolveTopic:', () => {
-	// 	it('should catch invalid input', () => {
-	// 		try {
-	// 			const transport = new AWSTransport();
-	// 			transport.resolveTopic(3353553);
-	// 		} catch (err) {
-	// 			return;
-	// 		}
-	// 		throw new Error('Failed to catch invalid input.');
-	// 	});
-	// 	it('should return the decoded input', () => {
-	// 		const transport = new AWSTransport();
-	// 		const result = transport.resolveTopic('localhost:play_game');
-	// 		result.should.equal('localhost/play_game');
-	// 	});
-	// });
+	describe('resolveTopic:', () => {
+		it('should catch invalid input', () => {
+			try {
+				const transport = new AWSTransport();
+				transport.resolveTopic(3353553);
+			} catch (err) {
+				return;
+			}
+			throw new Error('Failed to catch invalid input.');
+		});
+		it('should return the decoded input', () => {
+			const transport = new AWSTransport();
+			const result = transport.resolveTopic('localhost:play_game');
+			result.should.equal('localhost-play_game');
+		});
+	});
 
 	// describe('addListener:', () => {
 	// 	let transport;
@@ -279,35 +310,33 @@ describe('aws-transport:', () => {
 	// 	});
 	// });
 
-	// describe('listen:', () => {
-	// 	let transport;
+	describe('listen:', () => {
+		let transport;
 
-	// 	beforeEach(() => {
-	// 		transport = new AWSTransport();
-	// 	});
+		beforeEach(() => {
+			transport = new AWSTransport({ queue: 'bob' });
+		});
 
-	// 	afterEach(() => {
-	// 		if (transport && transport.listening) {
-	// 			return transport.disconnect();
-	// 		}
-	// 	});
+		afterEach(() => {
+			if (transport && transport.listening) {
+				return transport.disconnect();
+			}
+		});
 
-	// 	it('should return a promise that resolves', () => {
-	// 		return transport.listen();
-	// 	});
-	// 	it('should start listening', () => {
-	// 		return transport.listen()
-	// 			.then(() => {
-	// 				transport.listening.should.be.true();
-	// 			})
-	// 			.then(() => supertest(transport.app)
-	// 				.get('/bob?testParam=5')
-	// 				.set('X-PMG-CorrelationId', 'testCorrelationId')
-	// 				.set('X-PMG-Initiator', 'testInitiator')
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(404));
-	// 	});
-	// });
+		it('should return a promise that resolves', () => {
+			return transport.connect()
+				.then(() => transport.listen());
+		});
+		it('should start listening', () => {
+			return transport.connect()
+				.then(() => transport.listen())
+				.then(() => {
+					transport.listening.should.be.true();
+					expect(transport.consumer).to.exist();
+					transport.consumer.stopped = false;
+				});
+		});
+	});
 
 	// describe('publish:', () => {
 	// 	let transport;
