@@ -259,72 +259,50 @@ describe('aws-transport:', () => {
 					done(err);
 				});
 		});
-		// it('should handle unregistered routes appropriately', () => {
-		// 	return transport.listen()
-		// 		.then(() => supertest(transport.app)
-		// 			.post('/bob')
-		// 			.expect('Content-Type', /json/)
-		// 			.expect(404)
-		// 			.then((response) => { // eslint-disable-line max-nested-callbacks
-		// 				expect(response.body).to.exist();
-		// 				response.body.message.should.equal('Not Found');
-		// 			}));
-		// });
 	});
 
-	// describe('removeListener:', () => {
-	// 	let transport;
+	describe('removeListener:', () => {
+		let transport;
 
-	// 	beforeEach(() => {
-	// 		transport = new AWSTransport();
-	// 	});
+		beforeEach(() => {
+			transport = new AWSTransport({ queue: 'bob' });
+		});
 
-	// 	afterEach(() => {
-	// 		if (transport && transport.listening) {
-	// 			return transport.disconnect();
-	// 		}
-	// 	});
+		afterEach(() => {
+			if (transport && transport.listening) {
+				return transport.disconnect();
+			}
+		});
 
-	// 	it('should return a promise that resolves', () => {
-	// 		return transport.removeListener('bob');
-	// 	});
-	// 	it('should catch invalid routingKey params', () => {
-	// 		return transport.removeListener(35353535)
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should remove the listener', () => {
-	// 		return transport.addListener('bob', () => {
-	// 			return Promise.resolve();
-	// 		})
-	// 			.then((handler) => {
-	// 				expect(handler).to.exist();
-	// 			})
-	// 			.then(() => transport.listen())
-	// 			.then(() => supertest(transport.app)
-	// 				.get('/bob?testParam=5')
-	// 				.set('X-PMG-CorrelationId', 'testCorrelationId')
-	// 				.set('X-PMG-Initiator', 'testInitiator')
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(200)
-	// 				.then((response) => { // eslint-disable-line max-nested-callbacks
-	// 					expect(response.body).to.exist();
-	// 				}))
-	// 			.then(() => transport.removeListener('bob'))
-	// 			.then(() => supertest(transport.app)
-	// 				.get('/bob?testParam=5')
-	// 				.set('X-PMG-CorrelationId', 'testCorrelationId')
-	// 				.set('X-PMG-Initiator', 'testInitiator')
-	// 				.expect('Content-Type', /json/)
-	// 				.expect(404));
-	// 	});
-	// });
+		it('should return a promise that resolves', () => {
+			return transport.removeListener('bobMessage');
+		});
+		it('should catch invalid routingKey params', () => {
+			return transport.removeListener(35353535)
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+		it('should remove the listener', () => {
+			return transport.connect()
+				.then(() => transport.addListener('bobMessage', () => {
+					return Promise.resolve();
+				}))
+				.then(() => transport.listen())
+				.then(() => {
+					expect(transport.handlers.bobMessage).to.exist();
+				})
+				.then(() => transport.removeListener('bobMessage'))
+				.then(() => {
+					expect(transport.handlers.bobMessage).to.not.exist();
+				});
+		});
+	});
 
 	describe('listen:', () => {
 		let transport;
@@ -354,156 +332,83 @@ describe('aws-transport:', () => {
 		});
 	});
 
-	// describe('publish:', () => {
-	// 	let transport;
-	// 	let listenerTransport;
+	describe('publish:', () => {
+		let transport;
 
-	// 	beforeEach(() => {
-	// 		transport = new AWSTransport();
-	// 		listenerTransport = new AWSTransport();
-	// 		listenerTransport.addListener('bob', (msg) => {
-	// 			return Promise.resolve({ message: `${msg.message}, bob!` });
-	// 		});
-	// 		listenerTransport.listen();
-	// 	});
+		beforeEach(() => {
+			transport = new AWSTransport();
+		});
 
-	// 	afterEach(() => {
-	// 		if (transport && transport.listening) {
-	// 			return transport.disconnect();
-	// 		}
-	// 		if (listenerTransport && listenerTransport.listening) {
-	// 			return listenerTransport.disconnect();
-	// 		}
-	// 	});
+		afterEach(() => {
+			if (transport && transport.listening) {
+				return transport.disconnect();
+			}
+		});
 
-	// 	it('should return a promise that resolves', () => {
-	// 		return transport.publish('bob', { message: 'hello' }, { host: 'localhost', port: 3000 });
-	// 	});
-	// 	it('should catch invalid routingKey params', () => {
-	// 		return transport.publish(35353535, { message: 'hello' }, { host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should catch invalid correlationId params', () => {
-	// 		return transport.publish('bob', {}, { correlationId: 44444, host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should catch invalid initiator params', () => {
-	// 		return transport.publish('bob', {}, { initiator: 44444, host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// });
+		it('should return a promise that resolves', () => {
+			return transport.publish('bob', { message: 'hello' }, { host: 'localhost', port: 3000 });
+		});
+		it('should catch invalid routingKey params', () => {
+			return transport.publish(35353535, { message: 'hello' }, { host: 'localhost', port: 3000 })
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+		it('should catch invalid correlationId params', () => {
+			return transport.publish('bob', {}, { correlationId: 44444, host: 'localhost', port: 3000 })
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+		it('should catch invalid initiator params', () => {
+			return transport.publish('bob', {}, { initiator: 44444, host: 'localhost', port: 3000 })
+				.then(() => {
+					throw new Error('Failed to catch invalid input.');
+				})
+				.catch((err) => {
+					if (!(err instanceof TypeError)) {
+						throw err;
+					}
+				});
+		});
+	});
 
-	// describe('request:', () => {
-	// 	let transport;
-	// 	let listenerTransport;
+	describe('request:', () => {
+		let transport;
 
-	// 	beforeEach(() => {
-	// 		transport = new AWSTransport();
-	// 		listenerTransport = new AWSTransport();
-	// 		listenerTransport.addListener('bob', (msg) => {
-	// 			return Promise.resolve({ message: `${msg.message}, bob!` });
-	// 		})
-	// 		.then(() => listenerTransport.addListener('steve', (msg) => { // eslint-disable-line max-nested-callbacks
-	// 			if (!msg.message) {
-	// 				return Promise.reject(new errors.InvalidMessageError('Missing required parameter "message"'));
-	// 			}
-	// 			return Promise.resolve({ message: `${msg.message}, steve!` });
-	// 		}))
-	// 		.then(() => listenerTransport.addListener('dale', () => { // eslint-disable-line max-nested-callbacks
-	// 			return Promise.reject(new errors.ResponseProcessingError('Dale has an error!'));
-	// 		}))
-	// 		.then(() => listenerTransport.listen());
-	// 	});
+		beforeEach(() => {
+			transport = new AWSTransport({ queue: 'bob' });
+		});
 
-	// 	afterEach(() => {
-	// 		if (transport && transport.listening) {
-	// 			return transport.disconnect();
-	// 		}
-	// 		if (listenerTransport && listenerTransport.listening) {
-	// 			return listenerTransport.disconnect();
-	// 		}
-	// 	});
+		afterEach(() => {
+			if (transport && transport.listening) {
+				return transport.disconnect();
+			}
+		});
 
-	// 	it('should return a promise that resolves', () => {
-	// 		return transport.request('bob', { message: 'hello' }, { host: 'localhost', port: 3000 });
-	// 	});
-	// 	it('should catch invalid routingKey params', () => {
-	// 		return transport.request(35353535, { message: 'hello' }, { host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should catch invalid correlationId params', () => {
-	// 		return transport.request('bob', {}, { correlationId: 44444, host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should catch invalid initiator params', () => {
-	// 		return transport.request('bob', {}, { initiator: 44444, host: 'localhost', port: 3000 })
-	// 			.then(() => {
-	// 				throw new Error('Failed to catch invalid input.');
-	// 			})
-	// 			.catch((err) => {
-	// 				if (!(err instanceof TypeError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should resolve to the correct response', () => {
-	// 		return transport.request('bob', { message: 'hello' }, { host: 'localhost', port: 3000 })
-	// 			.then((response) => {
-	// 				expect(response).to.exist();
-	// 				expect(response.message).to.exist();
-	// 				response.message.should.equal('hello, bob!');
-	// 			});
-	// 	});
-	// 	it('should resolve to an invalid message error if the message is invalid', () => {
-	// 		return transport.request('steve', {}, { host: 'localhost', port: 3000 })
-	// 			.catch((err) => {
-	// 				if (!(err instanceof errors.InvalidMessageError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// 	it('should resolve to a general processing error if a general error occurs', () => {
-	// 		return transport.request('dale', {}, { host: 'localhost', port: 3000 })
-	// 			.catch((err) => {
-	// 				if (!(err instanceof errors.ResponseProcessingError)) {
-	// 					throw err;
-	// 				}
-	// 			});
-	// 	});
-	// });
+		it('should reject with a NotImplementedException', (done) => {
+			transport.request('bob', { message: 'hello' }, { host: 'localhost', port: 3000 })
+				.then(() => {
+					done(new Error('Failed to catch error'));
+				})
+				.catch((err) => {
+					try {
+						expect(err instanceof errors.NotImplementedError).to.be.true();
+						done();
+					} catch (err) {
+						done(err);
+					}
+				});
+		});
+	});
 });
