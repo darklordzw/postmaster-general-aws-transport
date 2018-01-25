@@ -212,8 +212,15 @@ class AWSTransport extends Transport {
 						queueUrl: this.queueUrl,
 						handleMessage: ((message, done) => {
 							const body = JSON.parse(message.Body || '{}');
+
+							if (!message.MessageAttributes.correlationId ||
+								!message.MessageAttributes.topic) {
+								return done(new Error('Invalid message, missing correlationId and topic attributes!'));
+							}
+
+							// Pull everything out of the SQS message to make it easier to pass to the handler.
 							const correlationId = message.MessageAttributes.correlationId.StringValue;
-							const initiator = message.MessageAttributes.initiator.StringValue || undefined;
+							const initiator = (message.MessageAttributes.initiator || {}).StringValue || undefined;
 							const topic = message.MessageAttributes.topic.StringValue;
 
 							if (this.handlers[topic]) {
@@ -224,7 +231,10 @@ class AWSTransport extends Transport {
 									.catch((err) => {
 										done(err);
 									})
-									.catch(() => {});
+									// If the call to "done" fails here we want to make sure we don't swallow the rejected promise.
+									.catch((err) => {
+										this.emit('error', err);
+									});
 							} else {
 								done(new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`));
 							}

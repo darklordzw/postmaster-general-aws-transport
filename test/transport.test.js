@@ -26,6 +26,7 @@ describe('aws-transport:', () => {
 	});
 
 	beforeEach(() => {
+		// Go ahead and provide a basic "success" mock for each of the AWS functions we'll be calling.
 		AWS.mock('SQS', 'createQueue', (params, callback) => {
 			callback(null, { QueueUrl: `${params.QueueName}-queue-url` });
 		});
@@ -188,13 +189,13 @@ describe('aws-transport:', () => {
 
 		it('should return a promise that resolves', () => {
 			return transport.connect()
-				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => {
+				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
 				}));
 		});
 		it('should catch invalid routingKey params', () => {
 			return transport.connect()
-				.then(() => transport.addListener(44444, (msg, correlationId, initiator) => {
+				.then(() => transport.addListener(44444, (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve({ result: `Received ${JSON.stringify(msg)}, ${correlationId}, ${initiator}` });
 				}))
 				.then(() => {
@@ -221,7 +222,7 @@ describe('aws-transport:', () => {
 		it('should register a working get callback', (done) => {
 			AWS.restore('SQS', 'receiveMessage');
 			AWS.mock('SQS', 'receiveMessage', (params, callback) => {
-				setTimeout(() => {
+				setTimeout(() => { // eslint-disable-line max-nested-callbacks
 					callback(null, {
 						Messages: [
 							{
@@ -240,7 +241,7 @@ describe('aws-transport:', () => {
 			});
 
 			transport.connect()
-				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => {
+				.then(() => transport.addListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
 					try {
 						msg.testMessage.should.equal('test value');
 						correlationId.should.equal('test');
@@ -290,7 +291,7 @@ describe('aws-transport:', () => {
 		});
 		it('should remove the listener', () => {
 			return transport.connect()
-				.then(() => transport.addListener('bobMessage', () => {
+				.then(() => transport.addListener('bobMessage', () => { // eslint-disable-line max-nested-callbacks
 					return Promise.resolve();
 				}))
 				.then(() => transport.listen())
