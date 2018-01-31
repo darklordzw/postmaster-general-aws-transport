@@ -71,8 +71,8 @@ class AWSTransport extends Transport {
 		this.deadLetterQueueArn = options.deadLetterQueueArn;
 		this.handlers = {};
 		this.registeredTopics = {
-			publish: new Set(),
-			subscribe: new Set()
+			publish: {},
+			subscribe: {}
 		};
 		this.consumer = null;
 
@@ -167,13 +167,14 @@ class AWSTransport extends Transport {
 				const topic = this.resolveTopic(routingKey);
 				this.handlers[topic] = callbackWrapper;
 
-				if (!this.registeredTopics.subscribe.has(topic)) {
+				if (!this.registeredTopics.subscribe[topic]) {
 					return this.sns.createTopic({ Name: topic }).promise()
 						.then((data) => this.sns.subscribe({ Protocol: 'sqs', TopicArn: data.TopicArn, Endpoint: this.queueArn }).promise())
 						.then((data) => {
 							if (!data.SubscriptionArn) {
 								throw new Error(`Unable to create a subscription from topic ${topic} to SQS queue ${this.queueUrl}`);
 							}
+							this.registeredTopics.subscribe[topic] = topic;
 							return this.handlers[topic];
 						});
 				}
@@ -274,9 +275,16 @@ class AWSTransport extends Transport {
 			.then((cId) => {
 				correlationId = cId;
 				topic = this.resolveTopic(routingKey);
+				if (this.registeredTopics.publish[topic]) {
+					return { TopicArn: this.registeredTopics.publish[topic] };
+				}
 				return this.sns.createTopic({ Name: topic }).promise();
 			})
-			.then((data) => this.sns.publish({
+			.then((data) => {
+				this.registeredTopics.publish[topic] = data.TopicArn;
+				return data.TopicArn;
+			})
+			.then((topicArn) => this.sns.publish({
 				Message: JSON.stringify(message),
 				MessageAttributes: {
 					correlationId: {
@@ -292,7 +300,7 @@ class AWSTransport extends Transport {
 						StringValue: topic
 					}
 				},
-				TopicArn: data.TopicArn
+				TopicArn: topicArn
 			}).promise());
 	}
 
