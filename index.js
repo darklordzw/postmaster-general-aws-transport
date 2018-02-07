@@ -293,7 +293,7 @@ class AWSTransport extends Transport {
 					},
 					initiator: {
 						DataType: 'String',
-						StringValue: options.initiator || ''
+						StringValue: options.initiator || 'UNKNOWN'
 					},
 					topic: {
 						DataType: 'String',
