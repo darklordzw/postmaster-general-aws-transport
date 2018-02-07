@@ -119,7 +119,7 @@ class AWSTransport extends Transport {
 							return this.sqs.getQueueAttributes({ QueueUrl: data.QueueUrl, AttributeNames: ['QueueArn'] }).promise();
 						})
 						.then((data) => {
-							this.queueArn = data.QueueArn;
+							this.queueArn = data.QueueArn || data.Attributes.QueueArn;
 						});
 				}
 			});
