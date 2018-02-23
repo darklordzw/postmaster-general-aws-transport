@@ -6,7 +6,7 @@ const dirtyChai = require('dirty-chai');
 const errors = require('postmaster-general-core').errors;
 const sinon = require('sinon');
 const AWS = require('aws-sdk-mock');
-const AWSTransport = require('../index');
+const AWSTransport = require('..');
 const defaults = require('../defaults.json');
 
 /* This sets up the Chai assertion library. "should" and "expect"
