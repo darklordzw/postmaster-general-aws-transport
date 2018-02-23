@@ -45,6 +45,7 @@
     "jsdoc": "^3.5.5",
     "mocha": "^4.1.0",
     "nyc": "^11.5.0",
+    "postmaster-general-core": "^0.0.10",
     "sinon": "^4.4.0",
     "xo": "^0.20.3"
   },
