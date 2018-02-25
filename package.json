@@ -29,12 +29,13 @@
   },
   "dependencies": {
     "aws-sdk": "^2.202.0",
+    "bluebird": "^3.5.1",
     "lodash": "^4.17.5",
     "sqs-consumer": "^3.8.0"
   },
   "peerDependencies": {
     "postmaster-general": "5.x",
-    "postmaster-general-core": "^0.0.11"
+    "postmaster-general-core": "^0.0.12"
   },
   "devDependencies": {
     "aws-sdk-mock": "^1.7.0",
@@ -45,8 +46,8 @@
     "jsdoc": "^3.5.5",
     "mocha": "^4.1.0",
     "nyc": "^11.5.0",
-    "postmaster-general-core": "^0.0.11",
-    "sinon": "^4.4.0",
+    "postmaster-general-core": "0.0.12",
+    "sinon": "^4.4.2",
     "xo": "^0.20.3"
   },
   "xo": {

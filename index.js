@@ -6,6 +6,7 @@
  * @module index
  */
 
+const Promise = require('bluebird');
 const _ = require('lodash');
 const AWS = require('aws-sdk');
 const Consumer = require('sqs-consumer');
@@ -83,6 +84,9 @@ class AWSTransport extends Transport {
 			accessKeyId: this.accessKeyId,
 			secretAccessKey: this.secretAccessKey
 		});
+
+		// Use bluebird for AWS promises.
+		AWS.config.setPromisesDependency(Promise);
 
 		this.sqs = new AWS.SQS();
 		this.sns = new AWS.SNS();

@@ -4,6 +4,7 @@
 const chai = require('chai');
 const dirtyChai = require('dirty-chai');
 const errors = require('postmaster-general-core').errors;
+const Promise = require('bluebird');
 const sinon = require('sinon');
 const AWS = require('aws-sdk-mock');
 const AWSTransport = require('..');
