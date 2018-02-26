@@ -51,6 +51,9 @@ describe('aws-transport:', () => {
 		AWS.mock('SNS', 'subscribe', (params, callback) => {
 			callback(null, { SubscriptionArn: `${params.TopicArn}-subscription-arn` });
 		});
+		AWS.mock('SNS', 'listSubscriptionsByTopic', (params, callback) => {
+			callback(null, { Subscriptions: [] });
+		});
 	});
 
 	afterEach(() => {

@@ -171,10 +171,29 @@ class AWSTransport extends Transport {
 
 				const topic = this.resolveTopic(routingKey);
 				this.handlers[topic] = callbackWrapper;
+				let topicArn;
 
 				if (!this.registeredTopics.subscribe[topic]) {
 					return this.sns.createTopic({ Name: topic }).promise()
-						.then((data) => this.sns.subscribe({ Protocol: 'sqs', TopicArn: data.TopicArn, Endpoint: this.queueArn }).promise())
+						.then((data) => {
+							if (!data.TopicArn) {
+								throw new Error(`Unable to create a topic ${topic}`);
+							}
+							topicArn = data.TopicArn;
+						})
+						.then(() => this.sns.listSubscriptionsByTopic({ TopicArn: topicArn }).promise())
+						.then((data) => {
+							if (!data.Subscriptions) {
+								throw new Error(`Unable to check subscriptions for topic ${topic}`);
+							}
+							const sub = data.Subscriptions.find((sub) => {
+								return sub.TopicArn === topicArn;
+							});
+							if (sub) {
+								return sub;
+							}
+							return this.sns.subscribe({ Protocol: 'sqs', TopicArn: topicArn, Endpoint: this.queueArn }).promise();
+						})
 						.then((data) => {
 							if (!data.SubscriptionArn) {
 								throw new Error(`Unable to create a subscription from topic ${topic} to SQS queue ${this.queueUrl}`);
