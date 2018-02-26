@@ -187,7 +187,7 @@ class AWSTransport extends Transport {
 								throw new Error(`Unable to check subscriptions for topic ${topic}`);
 							}
 							const sub = data.Subscriptions.find((sub) => {
-								return sub.TopicArn === topicArn;
+								return sub.Endpoint === this.queueArn;
 							});
 							if (sub) {
 								return sub;
