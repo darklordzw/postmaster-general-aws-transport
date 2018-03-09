@@ -64,6 +64,8 @@ class AWSTransport extends Transport {
 		this.queue = options.queue;
 		this.queueUrl = null;
 		this.queueArn = null;
+		this.subscriptionArn = null;
+		this.cleanupAWS = false;
 		this.accessKeyId = options.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
 		this.secretAccessKey = options.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
 		this.region = options.region || defaults.region;
@@ -141,6 +143,10 @@ class AWSTransport extends Transport {
 				if (this.consumer) {
 					this.consumer.stop();
 				}
+
+				if (this.cleanupAWS) {
+					return this.destroyAWSResources();
+				}
 			});
 	}
 
@@ -198,6 +204,7 @@ class AWSTransport extends Transport {
 							if (!data.SubscriptionArn) {
 								throw new Error(`Unable to create a subscription from topic ${topic} to SQS queue ${this.queueUrl}`);
 							}
+							this.subscriptionArn = data.SubscriptionArn;
 							this.registeredTopics.subscribe[topic] = topic;
 							return this.handlers[topic];
 						});
@@ -205,6 +212,24 @@ class AWSTransport extends Transport {
 
 				return this.handlers[topic];
 			});
+	}
+
+	/**
+	 * Called to remove any AWS resources that were created by the transport.
+	 * @returns {Promise}
+	 */
+	destroyAWSResources() {
+		const promises = [Promise.resolve()];
+
+		if (this.subscriptionArn) {
+			promises.push(this.sns.unsubscribe({ SubscriptionArn: this.subscriptionArn }).promise().catch());
+		}
+
+		if (this.queueUrl) {
+			promises.push(this.sqs.deleteQueue({ QueueUrl: this.queueUrl }).promise().catch());
+		}
+
+		return Promise.all(promises);
 	}
 
 	/**
