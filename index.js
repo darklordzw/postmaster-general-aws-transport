@@ -304,9 +304,9 @@ class AWSTransport extends Transport {
 							}
 
 							// Pull everything out of the SQS message to make it easier to pass to the handler.
-							const correlationId = message.MessageAttributes.correlationId.StringValue;
-							const initiator = (message.MessageAttributes.initiator || {}).StringValue || undefined;
-							const topic = message.MessageAttributes.topic.StringValue;
+							const correlationId = message.MessageAttributes.correlationId.Value || message.MessageAttributes.correlationId.StringValue;
+							const initiator = (message.MessageAttributes.initiator || {}).Value || (message.MessageAttributes.initiator || {}).StringValue || undefined;
+							const topic = message.MessageAttributes.topic.Value || message.MessageAttributes.topic.StringValue;
 
 							if (this.handlers[topic]) {
 								this.handlers[topic](body, correlationId, initiator)
