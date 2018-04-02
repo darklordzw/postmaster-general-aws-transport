@@ -34,11 +34,11 @@ describe('aws-transport:', () => {
 		AWS.mock('SQS', 'getQueueAttributes', (params, callback) => {
 			callback(null, {
 				QueueArn: `${params.QueueUrl}-queue-arn`,
-				Policy: {
+				Policy: JSON.stringify({
 					Version: '2012-10-17',
 					Id: `${this.queueArn}/SQSDefaultPolicy`,
 					Statement: []
-				}
+				})
 			});
 		});
 		AWS.mock('SQS', 'setQueueAttributes', (params, callback) => {

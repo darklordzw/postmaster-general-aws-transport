@@ -128,11 +128,11 @@ class AWSTransport extends Transport {
 						})
 						.then((data) => {
 							this.queueArn = data.QueueArn || data.Attributes.QueueArn;
-							this.policy = data.Policy || data.Attributes.Policy || {
+							this.policy = JSON.parse(data.Policy || data.Attributes.Policy || JSON.stringify({
 								Version: '2012-10-17',
 								Id: `${this.queueArn}/SQSDefaultPolicy`,
 								Statement: []
-							};
+							}));
 						});
 				}
 			});
@@ -212,7 +212,7 @@ class AWSTransport extends Transport {
 							}
 							this.subscriptionArn = data.SubscriptionArn;
 							this.registeredTopics.subscribe[topic] = topic;
-							
+
 							// Guard against adding multiple statements to this queue policy.
 							const sId = `Sid_${this.queue}_${topic}`;
 							const existingStatement = this.policy.Statement.find((s) => s.Sid === sId);
@@ -295,6 +295,8 @@ class AWSTransport extends Transport {
 						queueUrl: this.queueUrl,
 						handleMessage: ((message, done) => {
 							const body = JSON.parse(message.Body || '{}');
+
+							message.MessageAttributes = message.MessageAttributes || body.MessageAttributes;
 
 							if (!message.MessageAttributes.correlationId ||
 								!message.MessageAttributes.topic) {
