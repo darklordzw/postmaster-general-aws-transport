@@ -32,7 +32,17 @@ describe('aws-transport:', () => {
 			callback(null, { QueueUrl: `${params.QueueName}-queue-url` });
 		});
 		AWS.mock('SQS', 'getQueueAttributes', (params, callback) => {
-			callback(null, { QueueArn: `${params.QueueUrl}-queue-arn` });
+			callback(null, {
+				QueueArn: `${params.QueueUrl}-queue-arn`,
+				Policy: {
+					Version: '2012-10-17',
+					Id: `${this.queueArn}/SQSDefaultPolicy`,
+					Statement: []
+				}
+			});
+		});
+		AWS.mock('SQS', 'setQueueAttributes', (params, callback) => {
+			callback(null);
 		});
 		AWS.mock('SQS', 'receiveMessage', (params, callback) => {
 			setTimeout(() => {

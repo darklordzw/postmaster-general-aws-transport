@@ -79,6 +79,7 @@ class AWSTransport extends Transport {
 			subscribe: {}
 		};
 		this.consumer = null;
+		this.policy = null;
 
 		// Go ahead and initialize AWS here so it's available wherever we need it.
 		AWS.config.update({
@@ -123,10 +124,15 @@ class AWSTransport extends Transport {
 					return this.sqs.createQueue(queueOptions).promise()
 						.then((data) => {
 							this.queueUrl = data.QueueUrl;
-							return this.sqs.getQueueAttributes({ QueueUrl: data.QueueUrl, AttributeNames: ['QueueArn'] }).promise();
+							return this.sqs.getQueueAttributes({ QueueUrl: data.QueueUrl, AttributeNames: ['QueueArn', 'Policy'] }).promise();
 						})
 						.then((data) => {
 							this.queueArn = data.QueueArn || data.Attributes.QueueArn;
+							this.policy = data.Policy || data.Attributes.Policy || {
+								Version: '2012-10-17',
+								Id: `${this.queueArn}/SQSDefaultPolicy`,
+								Statement: []
+							};
 						});
 				}
 			});
@@ -206,6 +212,33 @@ class AWSTransport extends Transport {
 							}
 							this.subscriptionArn = data.SubscriptionArn;
 							this.registeredTopics.subscribe[topic] = topic;
+							
+							// Guard against adding multiple statements to this queue policy.
+							const sId = `Sid_${this.queue}_${topic}`;
+							const existingStatement = this.policy.Statement.find((s) => s.Sid === sId);
+							if (existingStatement) {
+								return;
+							}
+
+							// Modify the policy and update AWS.
+							this.policy.Statement.push({
+								Sid: sId,
+								Effect: 'Allow',
+								Principal: {
+									AWS: '*'
+								},
+								Action: 'SQS:SendMessage',
+								Resource: this.queueArn,
+								Condition: {
+									ArnEquals: { 'aws:SourceArn': topicArn }
+								}
+							});
+							return this.sqs.setQueueAttributes({
+								QueueUrl: this.queueUrl,
+								Attributes: { Policy: JSON.stringify(this.policy) }
+							}).promise();
+						})
+						.then(() => {
 							return this.handlers[topic];
 						});
 				}
