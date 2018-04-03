@@ -333,7 +333,7 @@ class AWSTransport extends Transport {
 					});
 
 					this.consumer.on('processing_error', (err) => {
-						this.emit('error', err);
+						console.error(err);
 					});
 				}
 
