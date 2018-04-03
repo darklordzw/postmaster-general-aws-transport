@@ -242,7 +242,7 @@ describe('aws-transport:', () => {
 							{
 								ReceiptHandle: 'test',
 								MessageId: 1,
-								Body: JSON.stringify({ testMessage: 'test value' }),
+								Body: JSON.stringify({ Message: JSON.stringify({ testMessage: 'test value' }) }),
 								MessageAttributes: {
 									correlationId: { StringValue: 'test' },
 									initiator: { StringValue: 'test' },

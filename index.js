@@ -309,7 +309,7 @@ class AWSTransport extends Transport {
 							const topic = message.MessageAttributes.topic.Value || message.MessageAttributes.topic.StringValue;
 
 							if (this.handlers[topic]) {
-								this.handlers[topic](body, correlationId, initiator)
+								this.handlers[topic](JSON.parse(body.Message || '{}'), correlationId, initiator)
 									.then(() => {
 										done();
 									})
