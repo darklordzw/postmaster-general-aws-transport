@@ -331,10 +331,6 @@ class AWSTransport extends Transport {
 					this.consumer.on('error', (err) => {
 						this.emit('error', err);
 					});
-
-					this.consumer.on('processing_error', (err) => {
-						console.error(err);
-					});
 				}
 
 				this.consumer.start();
