@@ -1,6 +1,6 @@
 {
   "name": "postmaster-general-aws-transport",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "A transport module for the postmaster-general microservice library using AWS SNS and SQS for message delivery.",
   "author": "Ben Whatley",
   "repository": {
