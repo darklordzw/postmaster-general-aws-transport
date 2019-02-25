@@ -3,7 +3,7 @@
 
 const chai = require('chai');
 const dirtyChai = require('dirty-chai');
-const errors = require('postmaster-general-core').errors;
+const { errors } = require('postmaster-general-core');
 const Promise = require('bluebird');
 const sinon = require('sinon');
 const AWS = require('aws-sdk-mock');
@@ -15,7 +15,7 @@ initialize their respective assertion properties. The "use()" functions
 load plugins into Chai. "dirtyChai" just allows assertion properties to
 use function call syntax ("calledOnce()" vs "calledOnce"). It makes them more
 acceptable to the linter. */
-const expect = chai.expect;
+const { expect } = chai;
 chai.should();
 chai.use(dirtyChai);
 
@@ -233,7 +233,7 @@ describe('aws-transport:', () => {
 					}
 				});
 		});
-		it('should register a working get callback', (done) => {
+		it('should register a working get callback', () => {
 			AWS.restore('SQS', 'receiveMessage');
 			AWS.mock('SQS', 'receiveMessage', (params, callback) => {
 				setTimeout(() => { // eslint-disable-line max-nested-callbacks
@@ -254,25 +254,16 @@ describe('aws-transport:', () => {
 				}, 1000);
 			});
 
-			transport.connect()
+			return transport.connect()
 				.then(() => transport.addMessageListener('bobMessage', (msg, correlationId, initiator) => { // eslint-disable-line max-nested-callbacks
-					try {
-						msg.testMessage.should.equal('test value');
-						correlationId.should.equal('test');
-						initiator.should.equal('test');
-						done();
-					} catch (err) {
-						done(err);
-					}
-					return Promise.resolve(this);
+					msg.testMessage.should.equal('test value');
+					correlationId.should.equal('test');
+					initiator.should.equal('test');
 				}))
 				.then((handler) => {
 					expect(handler).to.exist();
 				})
-				.then(() => transport.listen())
-				.catch((err) => {
-					done(err);
-				});
+				.then(() => transport.listen());
 		});
 	});
 

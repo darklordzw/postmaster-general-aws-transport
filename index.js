@@ -9,9 +9,9 @@
 const Promise = require('bluebird');
 const _ = require('lodash');
 const AWS = require('aws-sdk');
-const Consumer = require('sqs-consumer');
-const errors = require('postmaster-general-core').errors;
-const Transport = require('postmaster-general-core').Transport;
+const { Consumer } = require('sqs-consumer');
+const { errors } = require('postmaster-general-core');
+const { Transport } = require('postmaster-general-core');
 const defaults = require('./defaults');
 
 /**
