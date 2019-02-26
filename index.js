@@ -293,14 +293,14 @@ class AWSTransport extends Transport {
 				if (!this.consumer) {
 					this.consumer = Consumer.create({
 						queueUrl: this.queueUrl,
-						handleMessage: ((message, done) => {
+						handleMessage: (async (message) => {
 							const body = JSON.parse(message.Body || '{}');
 
 							message.MessageAttributes = message.MessageAttributes || body.MessageAttributes;
 
 							if (!message.MessageAttributes.correlationId ||
 								!message.MessageAttributes.topic) {
-								return done(new Error('Invalid message, missing correlationId and topic attributes!'));
+								throw new Error('Invalid message, missing correlationId and topic attributes!');
 							}
 
 							// Pull everything out of the SQS message to make it easier to pass to the handler.
@@ -309,19 +309,9 @@ class AWSTransport extends Transport {
 							const topic = message.MessageAttributes.topic.Value || message.MessageAttributes.topic.StringValue;
 
 							if (this.handlers[topic]) {
-								this.handlers[topic](JSON.parse(body.Message || '{}'), correlationId, initiator)
-									.then(() => {
-										done();
-									})
-									.catch((err) => {
-										done(err);
-									})
-									// If the call to "done" fails here we want to make sure we don't swallow the rejected promise.
-									.catch((err) => {
-										this.emit('error', err);
-									});
+								await this.handlers[topic](JSON.parse(body.Message || '{}'), correlationId, initiator);
 							} else {
-								done(new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`));
+								throw new Error(`No handlers were registered for topic ${JSON.stringify(topic)}`);
 							}
 						}),
 						sqs: this.sqs,
